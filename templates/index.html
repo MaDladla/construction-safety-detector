@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Construction Site Safety Detector</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; }
+    header { background: #f7b500; padding: 20px; text-align: center; }
+    header h1 { margin: 0; }
+    main { max-width: 900px; margin: 30px auto; background: #fff; padding: 25px; border-radius: 8px; }
+    button { background: #222; color: #fff; border: 0; padding: 10px 20px; border-radius: 4px; cursor: pointer; }
+    .error { color: #c00; font-weight: bold; }
+    .warn { color: #c00; }
+    .ok { color: #080; }
+    video { width: 100%; margin-top: 15px; border-radius: 6px; }
+    table { border-collapse: collapse; margin-top: 10px; }
+    td, th { border: 1px solid #ccc; padding: 6px 12px; }
+    #loading { display: none; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Construction Site Safety Detector</h1>
+    <p>YOLOv8n model detecting workers, helmets, safety vests and gloves</p>
+  </header>
+  <main>
+    <form method="post" enctype="multipart/form-data" onsubmit="document.getElementById('loading').style.display='block'">
+      <input type="file" name="video" accept="video/*" required>
+      <button type="submit">Upload &amp; Detect</button>
+    </form>
+    <p id="loading">Processing video, please wait. Long videos can take a few minutes...</p>
+
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+    {% if video %}
+      <h2>Result</h2>
+      <video controls src="{{ url_for('outputs', name=video) }}"></video>
+      <p><a href="{{ url_for('outputs', name=video) }}" download>Download annotated video</a></p>
+
+      <h3>Safety summary</h3>
+      <p>Frames processed: {{ stats.frames }} | Most workers in one frame: {{ stats.max_workers }}</p>
+      {% if stats.max_no_helmet or stats.max_no_vest %}
+        <p class="warn">Possible violations: up to {{ stats.max_no_helmet }} worker(s) without a helmet
+          and {{ stats.max_no_vest }} without a vest in a single frame.</p>
+      {% else %}
+        <p class="ok">No helmet or vest violations detected.</p>
+      {% endif %}
+
+      <table>
+        <tr><th>Class</th><th>Total detections (all frames)</th></tr>
+        {% for name, count in stats.detections.items() %}
+          <tr><td>{{ name }}</td><td>{{ count }}</td></tr>
+        {% endfor %}
+      </table>
+    {% endif %}
+  </main>
+</body>
+</html>

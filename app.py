@@ -15,6 +15,8 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 ALLOWED = {".mp4", ".avi", ".mov", ".mkv", ".webm"}
 CONF = float(os.environ.get("CONF_THRESHOLD", 0.4))
+# Frames per second actually analysed; keeps processing fast on small free servers
+TARGET_FPS = float(os.environ.get("TARGET_FPS", 5))
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 200 * 1024 * 1024
@@ -42,18 +44,23 @@ def check_frame(boxes, names):
 def process_video(src, dst):
     cap = cv2.VideoCapture(src)
     fps = cap.get(cv2.CAP_PROP_FPS) or 25
+    step = max(1, round(fps / TARGET_FPS))
     w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     tmp = dst + ".raw.mp4"
-    writer = cv2.VideoWriter(tmp, cv2.VideoWriter_fourcc(*"mp4v"), fps, (w, h))
+    writer = cv2.VideoWriter(tmp, cv2.VideoWriter_fourcc(*"mp4v"), fps / step, (w, h))
 
     counts = Counter()
     frames = max_workers = max_no_helmet = max_no_vest = 0
+    index = -1
     while True:
         ok, frame = cap.read()
         if not ok:
             break
-        result = model.predict(frame, conf=CONF, verbose=False)[0]
+        index += 1
+        if index % step:
+            continue
+        result = model.predict(frame, conf=CONF, imgsz=640, verbose=False)[0]
         names = result.names
         for cls in result.boxes.cls.tolist():
             counts[names[int(cls)]] += 1
